@@ -1,6 +1,8 @@
 import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
+import rateLimit from '@fastify/rate-limit'
+import { authRouter } from './modules/auth/auth.router.js'
 import 'dotenv/config'
 
 export function buildServer() {
@@ -14,6 +16,15 @@ export function buildServer() {
   })
 
   app.register(cookie)
+
+  if (process.env.NODE_ENV !== 'test') {
+    app.register(rateLimit, {
+      max: 100,
+      timeWindow: '1 minute',
+    })
+  }
+
+  app.register(authRouter)
 
   app.get('/health', async () => ({ status: 'ok' }))
 
