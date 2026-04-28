@@ -127,3 +127,60 @@ describe('POST /auth/logout-all', () => {
     expect(r2.statusCode).toBe(401)
   })
 })
+
+describe('GET /me', () => {
+  it('returns user info when authenticated', async () => {
+    await app.inject({ method: 'POST', url: '/auth/register', body: { email: 'test@example.com', password: 'password123' } })
+    const loginRes = await app.inject({ method: 'POST', url: '/auth/login', body: { email: 'test@example.com', password: 'password123' } })
+    const { accessToken } = loginRes.json()
+
+    const meRes = await app.inject({ method: 'GET', url: '/me', headers: { Authorization: `Bearer ${accessToken}` } })
+    expect(meRes.statusCode).toBe(200)
+    expect(meRes.json().user.roles).toContain('user')
+  })
+
+  it('returns 401 without a token', async () => {
+    const response = await app.inject({ method: 'GET', url: '/me' })
+    expect(response.statusCode).toBe(401)
+  })
+
+  it('returns 401 when session has been revoked (liveness check)', async () => {
+    await app.inject({ method: 'POST', url: '/auth/register', body: { email: 'test@example.com', password: 'password123' } })
+    const loginRes = await app.inject({ method: 'POST', url: '/auth/login', body: { email: 'test@example.com', password: 'password123' } })
+    const { accessToken } = loginRes.json()
+
+    await app.inject({ method: 'POST', url: '/auth/logout', headers: { Authorization: `Bearer ${accessToken}` } })
+
+    const meRes = await app.inject({ method: 'GET', url: '/me', headers: { Authorization: `Bearer ${accessToken}` } })
+    expect(meRes.statusCode).toBe(401)
+  })
+})
+
+describe('GET /admin/dashboard (RBAC)', () => {
+  it('returns 403 for a regular user', async () => {
+    await app.inject({ method: 'POST', url: '/auth/register', body: { email: 'test@example.com', password: 'password123' } })
+    const loginRes = await app.inject({ method: 'POST', url: '/auth/login', body: { email: 'test@example.com', password: 'password123' } })
+    const { accessToken } = loginRes.json()
+
+    const response = await app.inject({ method: 'GET', url: '/admin/dashboard', headers: { Authorization: `Bearer ${accessToken}` } })
+    expect(response.statusCode).toBe(403)
+  })
+})
+
+describe('POST /me/change-password', () => {
+  it('invalidates all sessions after password change', async () => {
+    await app.inject({ method: 'POST', url: '/auth/register', body: { email: 'test@example.com', password: 'oldpassword1' } })
+    const loginRes = await app.inject({ method: 'POST', url: '/auth/login', body: { email: 'test@example.com', password: 'oldpassword1' } })
+    const { accessToken, refreshToken } = loginRes.json()
+
+    const changeRes = await app.inject({
+      method: 'POST', url: '/me/change-password',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: { currentPassword: 'oldpassword1', newPassword: 'newpassword1' },
+    })
+    expect(changeRes.statusCode).toBe(200)
+
+    const refreshRes = await app.inject({ method: 'POST', url: '/auth/refresh', body: { refreshToken } })
+    expect(refreshRes.statusCode).toBe(401)
+  })
+})

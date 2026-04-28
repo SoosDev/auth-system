@@ -3,6 +3,8 @@ import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
 import { authRouter } from './modules/auth/auth.router.js'
+import { usersRouter } from './modules/users/users.router.js'
+import { sessionsRouter } from './modules/sessions/sessions.router.js'
 import 'dotenv/config'
 
 export function buildServer() {
@@ -25,6 +27,8 @@ export function buildServer() {
   }
 
   app.register(authRouter)
+  app.register(usersRouter)
+  app.register(sessionsRouter)
 
   app.get('/health', async () => ({ status: 'ok' }))
 
