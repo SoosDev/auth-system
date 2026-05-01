@@ -9,6 +9,9 @@ export interface RateLimitOptions {
   window: number
 }
 
+// Shared singleton — all rateLimit() calls accumulate against the same store.
+// Any integration test file exercising a rate-limited route MUST call
+// rateLimitStore.reset() in beforeEach to prevent cross-test state bleed.
 export const rateLimitStore = new RateLimitStore()
 
 function resolveKey(request: FastifyRequest, keyType: RateLimitKey): string {
