@@ -70,6 +70,11 @@ describe('rateLimit middleware — IP key', () => {
     expect(Number(res.headers['retry-after'])).toBeGreaterThanOrEqual(0)
     expect(Number(res.headers['x-ratelimit-reset'])).toBeGreaterThan(0)
   })
+
+  it('sets X-RateLimit-Reset header on every response', async () => {
+    const res = await app.inject({ method: 'GET', url: '/ip-limited' })
+    expect(Number(res.headers['x-ratelimit-reset'])).toBeGreaterThan(0)
+  })
 })
 
 describe('rateLimit middleware — user key', () => {
@@ -87,10 +92,24 @@ describe('rateLimit middleware — user key', () => {
   it('returns 500 when user key is used without authenticate before it', async () => {
     const res = await app.inject({ method: 'GET', url: '/user-no-auth' })
     expect(res.statusCode).toBe(500)
+    expect(res.json().message).toContain('requires authenticate middleware')
   })
 })
 
 describe('rateLimit middleware — session key', () => {
+  it('allows requests under the limit', async () => {
+    const res = await app.inject({ method: 'GET', url: '/session-limited' })
+    expect(res.statusCode).toBe(200)
+  })
+
+  it('user and session keys are tracked independently', async () => {
+    // exhaust the user limit
+    for (let i = 0; i < 2; i++) await app.inject({ method: 'GET', url: '/user-limited' })
+    // session counter should be unaffected
+    const res = await app.inject({ method: 'GET', url: '/session-limited' })
+    expect(res.statusCode).toBe(200)
+  })
+
   it('returns 429 when the session limit is exceeded', async () => {
     for (let i = 0; i < 2; i++) await app.inject({ method: 'GET', url: '/session-limited' })
     const res = await app.inject({ method: 'GET', url: '/session-limited' })
