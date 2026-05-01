@@ -20,6 +20,8 @@ export function buildServer() {
   app.register(cookie)
 
   if (process.env.NODE_ENV !== 'test') {
+    // Layer 1: global IP baseline — coarse protection for all routes (brute force, scraping, unauthenticated abuse)
+    // Layer 2: per-route auth-aware limits live in each router via rateLimit() middleware
     app.register(rateLimit, {
       max: 100,
       timeWindow: '1 minute',
