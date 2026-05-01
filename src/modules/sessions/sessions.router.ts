@@ -1,9 +1,12 @@
 import { FastifyInstance } from 'fastify'
 import { authenticate } from '../../middleware/authenticate.js'
+import { rateLimit } from '../rate-limit/rate-limit.middleware.js'
 import { getActiveSessions, revokeSession } from './sessions.service.js'
 
 export async function sessionsRouter(app: FastifyInstance) {
-  app.get('/sessions', { preHandler: [authenticate] }, async (request, reply) => {
+  app.get('/sessions', {
+    preHandler: [authenticate, rateLimit({ key: 'user', limit: 30, window: 60 })]
+  }, async (request, reply) => {
     const result = await getActiveSessions(request.user!.userId)
     return reply.send({ sessions: result })
   })

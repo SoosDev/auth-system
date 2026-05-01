@@ -2,12 +2,14 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { buildServer } from '../../src/server.js'
 import { db } from '../../src/db/index.js'
 import { users, sessions, userRoles } from '../../src/db/schema.js'
+import { rateLimitStore } from '../../src/modules/rate-limit/rate-limit.middleware.js'
 
 let app: Awaited<ReturnType<typeof buildServer>>
 
 beforeAll(async () => { app = buildServer(); await app.ready() })
 afterAll(async () => { await app.close() })
 beforeEach(async () => {
+  rateLimitStore.reset()
   await db.delete(sessions)
   await db.delete(userRoles)
   await db.delete(users)
