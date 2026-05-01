@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { buildServer } from '../../src/server.js'
 import { db } from '../../src/db/index.js'
 import { users, sessions, userRoles } from '../../src/db/schema.js'
+import { rateLimitStore } from '../../src/modules/rate-limit/rate-limit.middleware.js'
 
 let app: Awaited<ReturnType<typeof buildServer>>
 
@@ -15,6 +16,7 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
+  rateLimitStore.reset()
   await db.delete(sessions)
   await db.delete(userRoles)
   await db.delete(users)
@@ -182,5 +184,18 @@ describe('POST /me/change-password', () => {
 
     const refreshRes = await app.inject({ method: 'POST', url: '/auth/refresh', body: { refreshToken } })
     expect(refreshRes.statusCode).toBe(401)
+  })
+})
+
+describe('POST /auth/login rate limiting', () => {
+  it('returns 429 after 5 login attempts from the same IP within the window', async () => {
+    await app.inject({ method: 'POST', url: '/auth/register', body: { email: 'rl@example.com', password: 'password123' } })
+    for (let i = 0; i < 5; i++) {
+      await app.inject({ method: 'POST', url: '/auth/login', body: { email: 'rl@example.com', password: 'password123' } })
+    }
+    const res = await app.inject({ method: 'POST', url: '/auth/login', body: { email: 'rl@example.com', password: 'password123' } })
+    expect(res.statusCode).toBe(429)
+    expect(res.headers['x-ratelimit-limit']).toBe('5')
+    expect(res.headers['x-ratelimit-remaining']).toBe('0')
   })
 })

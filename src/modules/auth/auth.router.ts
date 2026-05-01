@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { registerSchema, loginSchema, refreshSchema } from './auth.schemas.js'
 import { registerUser, loginUser, refreshSession, logoutSession, revokeAllUserSessions } from './auth.service.js'
 import { authenticate } from '../../middleware/authenticate.js'
+import { rateLimit } from '../rate-limit/rate-limit.middleware.js'
 
 function handleError(err: any, reply: any) {
   if (err.statusCode) return reply.status(err.statusCode).send({ error: err.message })
@@ -19,12 +20,7 @@ export async function authRouter(app: FastifyInstance) {
 
   app.post('/auth/login', {
     schema: loginSchema,
-    config: {
-      rateLimit: {
-        max: 5,
-        timeWindow: '1 minute',
-      },
-    },
+    preHandler: [rateLimit({ key: 'ip', limit: 5, window: 60 })],
   }, async (request, reply) => {
     const { email, password } = request.body as { email: string; password: string }
     try {
@@ -46,7 +42,9 @@ export async function authRouter(app: FastifyInstance) {
     return reply.send({ message: 'Logged out successfully' })
   })
 
-  app.post('/auth/logout-all', { preHandler: [authenticate] }, async (request, reply) => {
+  app.post('/auth/logout-all', {
+    preHandler: [authenticate, rateLimit({ key: 'ip', limit: 20, window: 60 })],
+  }, async (request, reply) => {
     await revokeAllUserSessions(request.user!.userId)
     return reply.send({ message: 'All sessions revoked' })
   })
