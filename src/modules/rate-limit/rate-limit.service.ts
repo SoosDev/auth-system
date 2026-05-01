@@ -46,8 +46,6 @@ export class RateLimitStore {
     entry.currentCount++
     return {
       allowed: true,
-      // Floor is conservative since effectiveCount includes floating-point previous-window
-      // contribution from decay. remaining can be 0 even when technically 1 more request allowed.
       remaining: Math.max(0, Math.floor(limit - effectiveCount - 1)),
       resetAt,
     }

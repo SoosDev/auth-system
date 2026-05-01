@@ -21,7 +21,6 @@ function buildTestApp() {
     preHandler: [fakeAuth, rateLimit({ key: 'session', limit: 2, window: 60 })]
   }, async () => ({ ok: true }))
 
-  // Intentionally missing authenticate — used to verify the error case
   app.get('/user-no-auth', {
     preHandler: [rateLimit({ key: 'user', limit: 5, window: 60 })]
   }, async () => ({ ok: true }))
@@ -103,9 +102,7 @@ describe('rateLimit middleware — session key', () => {
   })
 
   it('user and session keys are tracked independently', async () => {
-    // exhaust the user limit
     for (let i = 0; i < 2; i++) await app.inject({ method: 'GET', url: '/user-limited' })
-    // session counter should be unaffected
     const res = await app.inject({ method: 'GET', url: '/session-limited' })
     expect(res.statusCode).toBe(200)
   })
