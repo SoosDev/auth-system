@@ -68,4 +68,36 @@ describe('RateLimitStore', () => {
     store.reset()
     expect(store.check('key1', 5, 60).allowed).toBe(true)
   })
+
+  it('decrements remaining counter correctly across consecutive requests', () => {
+    // Limit is 5, so first request should show 4 remaining
+    const first = store.check('key1', 5, 60)
+    expect(first.allowed).toBe(true)
+    expect(first.remaining).toBe(4)
+
+    // Second request should show 3 remaining
+    const second = store.check('key1', 5, 60)
+    expect(second.allowed).toBe(true)
+    expect(second.remaining).toBe(3)
+
+    // Third request should show 2 remaining
+    const third = store.check('key1', 5, 60)
+    expect(third.allowed).toBe(true)
+    expect(third.remaining).toBe(2)
+
+    // Fourth request should show 1 remaining
+    const fourth = store.check('key1', 5, 60)
+    expect(fourth.allowed).toBe(true)
+    expect(fourth.remaining).toBe(1)
+
+    // Fifth request should show 0 remaining
+    const fifth = store.check('key1', 5, 60)
+    expect(fifth.allowed).toBe(true)
+    expect(fifth.remaining).toBe(0)
+
+    // Sixth request should be blocked
+    const sixth = store.check('key1', 5, 60)
+    expect(sixth.allowed).toBe(false)
+    expect(sixth.remaining).toBe(0)
+  })
 })
